@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Learning Pro (V35 - iPad Sound Fix)</title>
+    <title>Magic Learning Pro (V36 - Android Fix)</title>
     <style>
         /* === 全局样式 === */
         :root { --primary: #2979FF; --bg-grey: #F5F7FA; --text-main: #333; --green: #4CAF50; }
@@ -163,9 +163,20 @@
         }
         .login-btn:active { background: #1565C0; }
 
+        /* === ★ 新增：调试信息黑匣子 (用于诊断华为平板) === */
+        #debug-console {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 100px;
+            background: rgba(0,0,0,0.8); color: #00FF00; font-family: monospace;
+            font-size: 10px; padding: 10px; box-sizing: border-box;
+            overflow-y: auto; z-index: 20000; pointer-events: none;
+            display: block; /* 默认显示，确认修好后可改为 none */
+        }
+
     </style>
 </head>
 <body>
+
+    <div id="debug-console">Wait for logs...</div>
 
     <div id="login-overlay">
         <div class="login-box">
@@ -180,17 +191,17 @@
             <button class="login-btn" onclick="checkAccountLogin()">登录 / Login</button>
             <p id="login-msg" style="color:red; font-size:13px; margin-top:10px; min-height:20px;"></p>
         </div>
-        <p style="margin-top:20px; font-size:12px; opacity:0.7;">Magic Learning Pro V35</p>
+        <p style="margin-top:20px; font-size:12px; opacity:0.7;">Magic Learning Pro V36</p>
     </div>
 
     <div id="menu-screen" style="padding:40px; text-align:center;">
-        <h2>📚 魔法精读 (V35)</h2>
+        <h2>📚 魔法精读 (V36)</h2>
         <div onclick="openBook()" style="background:white; display:inline-block; padding:20px; border-radius:15px; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.1); max-width: 320px;">
             <img id="cover-img" src="images/story001_yellowbus/p1.jpg" alt="Story Cover" style="background-color:#eee; border-radius:10px; margin-bottom:10px; width: 100%; height: auto; min-height: 200px; object-fit: cover; aspect-ratio: 4/3;">
             <h3>The Yellow Bus</h3>
             <p style="color:#666; font-size:12px;">点击封面进入</p>
         </div>
-        <div style="margin-top:20px; color:red; font-weight:bold; font-size:14px;">⚠️ 注意：iPad 必须关闭静音模式！<br>(侧边开关或控制中心红色铃铛)</div>
+        <div style="margin-top:20px; color:red; font-weight:bold; font-size:14px;">⚠️ 华为/iPad 请确保未开启静音模式</div>
     </div>
 
     <div id="learning-screen" style="display:none; height:100vh; flex-direction:column;">
@@ -226,6 +237,14 @@
     </div>
 
 <script>
+    /* ================= ★ 调试工具函数 ================= */
+    function log(msg) {
+        const box = document.getElementById('debug-console');
+        const time = new Date().toLocaleTimeString();
+        box.innerHTML = `[${time}] ${msg}<br>` + box.innerHTML;
+        console.log(`[MagicLog] ${msg}`);
+    }
+
     /* ================= ★ 核心：用户账号管理系统 ================= */
     
     // 默认测试账号： vip1 / 123456
@@ -236,7 +255,6 @@
         "class01": "000000" 
     };
 
-    // ★ iPad 声音修复 1：在点击登录时就尝试唤醒音频
     function checkAccountLogin() {
         const userIn = document.getElementById('username-input').value.trim();
         const passIn = document.getElementById('password-input').value.trim();
@@ -245,11 +263,10 @@
         if (USER_DATABASE[userIn] && USER_DATABASE[userIn] === passIn) {
             msg.innerText = "✅ 登录成功！";
             msg.style.color = "green";
-            
             localStorage.setItem('magic_user_account', userIn);
             
-            // 尝试热启动
-            wakeUpAudio();
+            log("User logged in. Attempting warm-up.");
+            wakeUpAudio(); // 热启动
 
             setTimeout(() => {
                 document.getElementById('login-overlay').style.display = 'none';
@@ -261,6 +278,14 @@
     }
 
     window.addEventListener('load', () => {
+        log("Page Loaded. Checking TTS support...");
+        if (!('speechSynthesis' in window)) {
+            log("❌ CRITICAL: This browser does not support TTS!");
+            alert("您的浏览器不支持语音朗读，请更换 Chrome 或 Safari");
+        } else {
+            log("TTS Engine detected.");
+        }
+
         const savedUser = localStorage.getItem('magic_user_account');
         if (savedUser && USER_DATABASE[savedUser]) {
             document.getElementById('login-overlay').style.display = 'none';
@@ -357,21 +382,23 @@
     }
 
     function initVoices() {
-        // 主动请求一次语音列表
         availableVoices = window.speechSynthesis.getVoices();
+        log("Init: Voices loaded: " + availableVoices.length);
+        
         if (availableVoices.length === 0) {
             window.speechSynthesis.onvoiceschanged = () => {
                 availableVoices = window.speechSynthesis.getVoices();
+                log("Update: Voices changed. Count: " + availableVoices.length);
             };
         }
     }
 
-    // ★ iPad 声音修复 2：专门的唤醒函数
+    // 唤醒函数
     function wakeUpAudio() {
-        // 播放一个极短的静音片段，强制浏览器获取音频焦点
+        log("Waking up audio engine...");
         window.speechSynthesis.cancel();
         let silent = new SpeechSynthesisUtterance("");
-        silent.volume = 0; // 静音
+        silent.volume = 0;
         window.speechSynthesis.speak(silent);
     }
 
@@ -380,27 +407,20 @@
         document.getElementById('learning-screen').style.display = 'flex';
         document.getElementById('start-overlay').style.display = 'flex';
 
-        // 再次尝试唤醒
         wakeUpAudio();
-        
         renderContent();
         initVoices(); 
         activateParagraph(0, true); 
     }
 
-    // ★ iPad 声音修复 3：在点击 Start 的瞬间，再次确保音频激活
     function startStory() {
+        log("User clicked Start Story.");
         document.getElementById('start-overlay').style.display = 'none';
-        
-        // 先停止之前的任何操作
         window.speechSynthesis.cancel();
-        
-        // 再次强制刷新语音列表（防止之前没加载出来）
-        availableVoices = window.speechSynthesis.getVoices();
-        
         startAutoPlay();
     }
 
+    // 点击全显逻辑
     window.revealAllVocab = function() {
         const container = document.getElementById('vocab-container');
         const header = document.getElementById('vocab-header-el');
@@ -573,6 +593,8 @@
         }
     }
 
+    /* ================= 播放控制 ================= */
+
     function toggleAutoPlay() {
         if (isAutoPlaying) stopAutoPlay();
         else startAutoPlay();
@@ -615,39 +637,50 @@
         });
     }
 
-    /* ================= ★ iPad 声音修复 4：更稳健的 TTS 引擎 ================= */
+    /* ================= ★ 安卓/华为/鸿蒙 TTS 核心修复 ================= */
     
     function speakText(text, onEndCallback) {
+        log("ReqSpeak: " + text);
         window.speechSynthesis.cancel();
         currentUtterance = new SpeechSynthesisUtterance(text);
         
         assignVoice(currentUtterance);
         currentUtterance.rate = currentRate;
         
+        // 关键修复：华为平板有时不触发 onend，加一个兜底计时器
         if(onEndCallback) {
-            currentUtterance.onend = onEndCallback;
+            currentUtterance.onend = () => {
+                log("Speak Finished.");
+                onEndCallback();
+            };
+            currentUtterance.onerror = (e) => {
+                log("Speak Error: " + e.error);
+            };
         }
 
-        // 强行调用 speak
         window.speechSynthesis.speak(currentUtterance);
+        log("Sent to TTS engine.");
     }
 
     function assignVoice(utterance) {
-        // 如果声音列表还是空的，再次尝试获取
         if (availableVoices.length === 0) availableVoices = window.speechSynthesis.getVoices();
         
-        // 尝试匹配美式英语
+        // 1. 优先美式英语
         let targetVoice = availableVoices.find(v => v.lang === 'en-US');
+        // 2. 其次任何英语 (en-GB, en_US, en)
+        if (!targetVoice) targetVoice = availableVoices.find(v => v.lang.indexOf('en') !== -1);
         
-        // 如果找不到美式，尝试任何英语 (兼容 iPad 的 Samantha 等声音)
-        if (!targetVoice) targetVoice = availableVoices.find(v => v.lang.startsWith('en'));
-        
+        // ★ 3. 华为/安卓兜底：如果还找不到，就用默认的第一个声音（哪怕它是中文，也比没声音强）
+        if (!targetVoice && availableVoices.length > 0) {
+            targetVoice = availableVoices[0];
+            log("Fallback to default voice: " + targetVoice.name);
+        }
+
         if (targetVoice) {
             utterance.voice = targetVoice;
-            utterance.lang = targetVoice.lang;
+            log("Selected Voice: " + targetVoice.name + " (" + targetVoice.lang + ")");
         } else {
-            // 最后的兜底
-            utterance.lang = 'en-US';
+            log("No voice found. Using system default.");
         }
     }
 </script>

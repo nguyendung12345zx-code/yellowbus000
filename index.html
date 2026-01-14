@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Learning Pro (V36 - Android Fix)</title>
+    <title>Magic Learning Pro (V37 - Huawei Safe Mode)</title>
     <style>
         /* === 全局样式 === */
         :root { --primary: #2979FF; --bg-grey: #F5F7FA; --text-main: #333; --green: #4CAF50; }
@@ -18,6 +18,7 @@
         .back-btn { border: 1px solid #ddd; background: white; padding: 4px 10px; border-radius: 20px; cursor: pointer; color: #555; font-size: 12px; white-space: nowrap; }
         
         .nav-group { display: flex; align-items: center; gap: 4px; border-right: 1px solid #eee; padding-right: 8px; margin-right: 4px; }
+        /* 华为修复：隐藏语速按钮，防止引擎崩溃 */
         .speed-btn { 
             border: 1px solid #ddd; background: #f9f9f9; padding: 4px 6px; border-radius: 4px; 
             cursor: pointer; font-size: 12px; min-width: 30px;
@@ -163,13 +164,12 @@
         }
         .login-btn:active { background: #1565C0; }
 
-        /* === ★ 新增：调试信息黑匣子 (用于诊断华为平板) === */
+        /* === 调试工具 === */
         #debug-console {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 100px;
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 80px;
             background: rgba(0,0,0,0.8); color: #00FF00; font-family: monospace;
-            font-size: 10px; padding: 10px; box-sizing: border-box;
+            font-size: 10px; padding: 5px; box-sizing: border-box;
             overflow-y: auto; z-index: 20000; pointer-events: none;
-            display: block; /* 默认显示，确认修好后可改为 none */
         }
 
     </style>
@@ -181,31 +181,26 @@
     <div id="login-overlay">
         <div class="login-box">
             <h2 style="margin-top:0; color:#2979FF;">🔐 学员登录</h2>
-            
             <div style="text-align:left; font-size:14px; color:#666; margin-bottom:5px;">账号 (Username)</div>
             <input type="text" id="username-input" class="login-input" placeholder="请输入账号">
-            
             <div style="text-align:left; font-size:14px; color:#666; margin-bottom:5px;">密码 (Password)</div>
             <input type="password" id="password-input" class="login-input" placeholder="请输入密码">
-            
             <button class="login-btn" onclick="checkAccountLogin()">登录 / Login</button>
             <p id="login-msg" style="color:red; font-size:13px; margin-top:10px; min-height:20px;"></p>
         </div>
-        <p style="margin-top:20px; font-size:12px; opacity:0.7;">Magic Learning Pro V36</p>
+        <p style="margin-top:20px; font-size:12px; opacity:0.7;">Magic Learning Pro V37</p>
     </div>
 
     <div id="menu-screen" style="padding:40px; text-align:center;">
-        <h2>📚 魔法精读 (V36)</h2>
+        <h2>📚 魔法精读 (V37)</h2>
         <div onclick="openBook()" style="background:white; display:inline-block; padding:20px; border-radius:15px; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.1); max-width: 320px;">
             <img id="cover-img" src="images/story001_yellowbus/p1.jpg" alt="Story Cover" style="background-color:#eee; border-radius:10px; margin-bottom:10px; width: 100%; height: auto; min-height: 200px; object-fit: cover; aspect-ratio: 4/3;">
             <h3>The Yellow Bus</h3>
             <p style="color:#666; font-size:12px;">点击封面进入</p>
         </div>
-        <div style="margin-top:20px; color:red; font-weight:bold; font-size:14px;">⚠️ 华为/iPad 请确保未开启静音模式</div>
     </div>
 
     <div id="learning-screen" style="display:none; height:100vh; flex-direction:column;">
-        
         <div id="start-overlay">
             <div style="font-size:60px; margin-bottom:20px;">🚌</div>
             <button class="big-start-btn" onclick="startStory()">
@@ -229,7 +224,8 @@
             <div id="col-left">
                 <img id="scene-img" src="" style="background-color:#eee;" onerror="this.alt='图片未找到'">
             </div>
-            <div id="col-mid"></div> <div id="col-right">
+            <div id="col-mid"></div>
+            <div id="col-right">
                 <div id="vocab-header-el" class="vocab-header" onclick="revealAllVocab()" title="点击展开所有单词">🔑 核心词汇 (点击全显)</div>
                 <div class="vocab-list" id="vocab-container"></div>
             </div>
@@ -237,7 +233,6 @@
     </div>
 
 <script>
-    /* ================= ★ 调试工具函数 ================= */
     function log(msg) {
         const box = document.getElementById('debug-console');
         const time = new Date().toLocaleTimeString();
@@ -245,15 +240,8 @@
         console.log(`[MagicLog] ${msg}`);
     }
 
-    /* ================= ★ 核心：用户账号管理系统 ================= */
-    
-    // 默认测试账号： vip1 / 123456
-    const USER_DATABASE = {
-        "vip1": "123456",
-        "vip2": "123456",
-        "student": "888888",
-        "class01": "000000" 
-    };
+    /* ================= 登录系统 ================= */
+    const USER_DATABASE = { "vip1": "123456", "vip2": "123456", "student": "888888", "class01": "000000" };
 
     function checkAccountLogin() {
         const userIn = document.getElementById('username-input').value.trim();
@@ -264,13 +252,8 @@
             msg.innerText = "✅ 登录成功！";
             msg.style.color = "green";
             localStorage.setItem('magic_user_account', userIn);
-            
-            log("User logged in. Attempting warm-up.");
-            wakeUpAudio(); // 热启动
-
-            setTimeout(() => {
-                document.getElementById('login-overlay').style.display = 'none';
-            }, 500);
+            wakeUpAudio();
+            setTimeout(() => { document.getElementById('login-overlay').style.display = 'none'; }, 500);
         } else {
             msg.innerText = "❌ 账号或密码错误";
             msg.style.color = "red";
@@ -278,85 +261,27 @@
     }
 
     window.addEventListener('load', () => {
-        log("Page Loaded. Checking TTS support...");
+        log("App Loaded.");
         if (!('speechSynthesis' in window)) {
-            log("❌ CRITICAL: This browser does not support TTS!");
-            alert("您的浏览器不支持语音朗读，请更换 Chrome 或 Safari");
-        } else {
-            log("TTS Engine detected.");
+            alert("您的设备不支持语音合成，请检查设置。");
         }
-
         const savedUser = localStorage.getItem('magic_user_account');
         if (savedUser && USER_DATABASE[savedUser]) {
             document.getElementById('login-overlay').style.display = 'none';
         }
         setRandomCoverImage();
-        initVoices();
+        // 华为修复：不在这里强制 initVoices，因为可能导致卡死
     });
 
     /* ================= 数据源 ================= */
     const storyData = {
         title: "The Yellow Bus",
         paragraphs: [
-            {
-                text: "I go to {school} by the {yellow} {bus} every {morning}. It is a {big} and {long} car.",
-                cn: "我每天早上坐黄色校车去上学。它是一辆又大又长的车。",
-                img: "images/story001_yellowbus/p1.jpg", 
-                vocab: { 
-                    "school": { ph: "/skuːl/", pos: "n.", cn: "学校" },
-                    "yellow": { ph: "/ˈjel.oʊ/", pos: "adj.", cn: "黄色的" },
-                    "bus": { ph: "/bʌs/", pos: "n.", cn: "公共汽车" },
-                    "morning": { ph: "/ˈmɔːr.nɪŋ/", pos: "n.", cn: "早晨" },
-                    "big": { ph: "/bɪɡ/", pos: "adj.", cn: "大的" },
-                    "long": { ph: "/lɑːŋ/", pos: "adj.", cn: "长的" }
-                }
-            },
-            {
-                text: "The {driver} is Mr. Brown. He is very {nice} to us.",
-                cn: "司机是布朗先生，他对我们很友善。",
-                img: "images/story001_yellowbus/p2.jpg",
-                vocab: { 
-                    "driver": { ph: "/ˈdraɪ.vɚ/", pos: "n.", cn: "司机" },
-                    "nice": { ph: "/naɪs/", pos: "adj.", cn: "友好的" }
-                }
-            },
-            {
-                text: "I {wait} for the bus at the bus {stop}. When the {door} {opens}, I see my {friends} {inside}.",
-                cn: "我在车站等车。当车门打开时，我看到我的朋友们在里面。",
-                img: "images/story001_yellowbus/p3.jpg",
-                vocab: { 
-                    "wait": { ph: "/weɪt/", pos: "v.", cn: "等待" },
-                    "stop": { ph: "/stɑːp/", pos: "n.", cn: "车站" },
-                    "door": { ph: "/dɔːr/", pos: "n.", cn: "门" },
-                    "opens": { ph: "/ˈoʊ.pənz/", pos: "v.", cn: "打开" },
-                    "friends": { ph: "/frendz/", pos: "n.", cn: "朋友" },
-                    "inside": { ph: "/ɪnˈsaɪd/", pos: "adv.", cn: "在里面" }
-                }
-            },
-            {
-                text: "We {sit} together and {look} out the {window}. We {talk} and {laugh} {happily}.",
-                cn: "我们坐在一起看窗外。我们开心地说话大笑。",
-                img: "images/story001_yellowbus/p4.jpg",
-                vocab: { 
-                    "sit": { ph: "/sɪt/", pos: "v.", cn: "坐" },
-                    "look": { ph: "/lʊk/", pos: "v.", cn: "看" },
-                    "window": { ph: "/ˈwɪn.doʊ/", pos: "n.", cn: "窗户" },
-                    "talk": { ph: "/tɑːk/", pos: "v.", cn: "说话" },
-                    "laugh": { ph: "/læf/", pos: "v.", cn: "笑" },
-                    "happily": { ph: "/ˈhæp.əl.i/", pos: "adv.", cn: "快乐地" }
-                }
-            },
-            {
-                text: "The bus {ride} is {safe} and {fun}. I {love} the yellow bus.",
-                cn: "坐校车既安全又有趣。我爱黄色校车。",
-                img: "images/story001_yellowbus/p5.jpg",
-                vocab: { 
-                    "ride": { ph: "/raɪd/", pos: "n.", cn: "旅程/乘车" },
-                    "safe": { ph: "/seɪf/", pos: "adj.", cn: "安全的" },
-                    "fun": { ph: "/fʌn/", pos: "adj.", cn: "有趣的" },
-                    "love": { ph: "/lʌv/", pos: "v.", cn: "爱" }
-                }
-            }
+            { text: "I go to {school} by the {yellow} {bus} every {morning}. It is a {big} and {long} car.", cn: "我每天早上坐黄色校车去上学。它是一辆又大又长的车。", img: "images/story001_yellowbus/p1.jpg", vocab: { "school": { ph: "/skuːl/", pos: "n.", cn: "学校" }, "yellow": { ph: "/ˈjel.oʊ/", pos: "adj.", cn: "黄色的" }, "bus": { ph: "/bʌs/", pos: "n.", cn: "公共汽车" }, "morning": { ph: "/ˈmɔːr.nɪŋ/", pos: "n.", cn: "早晨" }, "big": { ph: "/bɪɡ/", pos: "adj.", cn: "大的" }, "long": { ph: "/lɑːŋ/", pos: "adj.", cn: "长的" } } },
+            { text: "The {driver} is Mr. Brown. He is very {nice} to us.", cn: "司机是布朗先生，他对我们很友善。", img: "images/story001_yellowbus/p2.jpg", vocab: { "driver": { ph: "/ˈdraɪ.vɚ/", pos: "n.", cn: "司机" }, "nice": { ph: "/naɪs/", pos: "adj.", cn: "友好的" } } },
+            { text: "I {wait} for the bus at the bus {stop}. When the {door} {opens}, I see my {friends} {inside}.", cn: "我在车站等车。当车门打开时，我看到我的朋友们在里面。", img: "images/story001_yellowbus/p3.jpg", vocab: { "wait": { ph: "/weɪt/", pos: "v.", cn: "等待" }, "stop": { ph: "/stɑːp/", pos: "n.", cn: "车站" }, "door": { ph: "/dɔːr/", pos: "n.", cn: "门" }, "opens": { ph: "/ˈoʊ.pənz/", pos: "v.", cn: "打开" }, "friends": { ph: "/frendz/", pos: "n.", cn: "朋友" }, "inside": { ph: "/ɪnˈsaɪd/", pos: "adv.", cn: "在里面" } } },
+            { text: "We {sit} together and {look} out the {window}. We {talk} and {laugh} {happily}.", cn: "我们坐在一起看窗外。我们开心地说话大笑。", img: "images/story001_yellowbus/p4.jpg", vocab: { "sit": { ph: "/sɪt/", pos: "v.", cn: "坐" }, "look": { ph: "/lʊk/", pos: "v.", cn: "看" }, "window": { ph: "/ˈwɪn.doʊ/", pos: "n.", cn: "窗户" }, "talk": { ph: "/tɑːk/", pos: "v.", cn: "说话" }, "laugh": { ph: "/læf/", pos: "v.", cn: "笑" }, "happily": { ph: "/ˈhæp.əl.i/", pos: "adv.", cn: "快乐地" } } },
+            { text: "The bus {ride} is {safe} and {fun}. I {love} the yellow bus.", cn: "坐校车既安全又有趣。我爱黄色校车。", img: "images/story001_yellowbus/p5.jpg", vocab: { "ride": { ph: "/raɪd/", pos: "n.", cn: "旅程/乘车" }, "safe": { ph: "/seɪf/", pos: "adj.", cn: "安全的" }, "fun": { ph: "/fʌn/", pos: "adj.", cn: "有趣的" }, "love": { ph: "/lʌv/", pos: "v.", cn: "爱" } } }
         ],
         quizzes: [
             { question: "What color is the bus?", options: ["Red", "Yellow", "Blue"], answer: 1 },
@@ -365,13 +290,10 @@
         ]
     };
 
-    /* ================= 全局变量 ================= */
     let currentRate = 1.0;
     let isAutoPlaying = false; 
     let currentUtterance = null;
     let availableVoices = [];
-
-    /* ================= 初始化与事件 ================= */
 
     function setRandomCoverImage() {
         const coverImg = document.getElementById('cover-img');
@@ -381,21 +303,7 @@
         if(storyImages[randomIndex]) coverImg.src = storyImages[randomIndex];
     }
 
-    function initVoices() {
-        availableVoices = window.speechSynthesis.getVoices();
-        log("Init: Voices loaded: " + availableVoices.length);
-        
-        if (availableVoices.length === 0) {
-            window.speechSynthesis.onvoiceschanged = () => {
-                availableVoices = window.speechSynthesis.getVoices();
-                log("Update: Voices changed. Count: " + availableVoices.length);
-            };
-        }
-    }
-
-    // 唤醒函数
     function wakeUpAudio() {
-        log("Waking up audio engine...");
         window.speechSynthesis.cancel();
         let silent = new SpeechSynthesisUtterance("");
         silent.volume = 0;
@@ -406,32 +314,28 @@
         document.getElementById('menu-screen').style.display = 'none';
         document.getElementById('learning-screen').style.display = 'flex';
         document.getElementById('start-overlay').style.display = 'flex';
-
         wakeUpAudio();
         renderContent();
-        initVoices(); 
         activateParagraph(0, true); 
     }
 
     function startStory() {
-        log("User clicked Start Story.");
+        log("Start button clicked.");
         document.getElementById('start-overlay').style.display = 'none';
         window.speechSynthesis.cancel();
+        
+        // 华为修复：点击时才去获取语音列表，而不是页面加载时
+        availableVoices = window.speechSynthesis.getVoices();
+        log("Voices found: " + availableVoices.length);
+        
         startAutoPlay();
     }
 
-    // 点击全显逻辑
     window.revealAllVocab = function() {
         const container = document.getElementById('vocab-container');
         const header = document.getElementById('vocab-header-el');
-        
-        if(header) {
-            header.innerText = "🔓 全书词汇 (已全部加载)";
-            header.style.color = "#4CAF50";
-        }
-
+        if(header) { header.innerText = "🔓 全书词汇 (已全部加载)"; header.style.color = "#4CAF50"; }
         container.innerHTML = "";
-
         storyData.paragraphs.forEach(para => {
             for (let [word, info] of Object.entries(para.vocab)) {
                 let card = createVocabCard(word, info);
@@ -445,7 +349,6 @@
         let card = document.createElement('div');
         card.className = 'vocab-card';
         card.id = `vocab-card-${word}`;
-        
         card.onclick = function() {
             stopAutoPlay();
             document.querySelectorAll('.vocab-card').forEach(el => el.classList.remove('focused'));
@@ -453,42 +356,28 @@
             if (!this.classList.contains('revealed')) this.classList.add('revealed');
             speakText(word);
         };
-
-        card.innerHTML = `
-            <div class="vocab-top">
-                <div><span class="vocab-word">${word}</span> <span style="font-size:12px;color:#888;">${info.ph}</span></div>
-                <button style="border:none;background:none;color:#2979FF;" onclick="event.stopPropagation(); stopAutoPlay(); speakText('${word}')">🔊</button>
-            </div>
-            <div class="vocab-mask">点击查看</div>
-            <div class="vocab-reveal"><span class="pos-tag">${info.pos}</span> ${info.cn}</div>
-        `;
+        card.innerHTML = `<div class="vocab-top"><div><span class="vocab-word">${word}</span> <span style="font-size:12px;color:#888;">${info.ph}</span></div><button style="border:none;background:none;color:#2979FF;" onclick="event.stopPropagation(); stopAutoPlay(); speakText('${word}')">🔊</button></div><div class="vocab-mask">点击查看</div><div class="vocab-reveal"><span class="pos-tag">${info.pos}</span> ${info.cn}</div>`;
         return card;
     }
 
     function renderContent() {
         const container = document.getElementById('col-mid');
         container.innerHTML = "";
-
         storyData.paragraphs.forEach((para, idx) => {
             let card = document.createElement('div');
             card.className = 'script-card';
             card.id = `para-${idx}`;
-            
             card.onclick = (e) => {
                 if(!e.target.classList.contains('highlight-word')) {
                     stopAutoPlay();
                     activateParagraph(idx);
                 }
             };
-
-            let htmlText = para.text.replace(/{(\w+)}/g, (match, word) => {
-                return `<span class="highlight-word" onclick="handleWordClick('${word}', ${idx}, event)">${word}</span>`;
-            });
-
+            let htmlText = para.text.replace(/{(\w+)}/g, (match, word) => `<span class="highlight-word" onclick="handleWordClick('${word}', ${idx}, event)">${word}</span>`);
             card.innerHTML = `<div class="en-text">${htmlText}</div><div class="cn-text">${para.cn}</div>`;
             container.appendChild(card);
         });
-
+        
         let divider = document.createElement('div');
         divider.className = 'section-divider';
         divider.innerText = "——— ✨ Quiz Time (互动挑战) ✨ ———";
@@ -497,23 +386,9 @@
         storyData.quizzes.forEach((quiz, qIdx) => {
             let qCard = document.createElement('div');
             qCard.className = 'quiz-card';
-            qCard.innerHTML = `
-                <div style="font-weight:bold;color:#EF6C00;margin-bottom:8px;">Question ${qIdx + 1}</div>
-                <div style="display:flex; align-items:center; margin-bottom:10px;">
-                    <div style="font-weight:bold; flex:1; font-size:16px;">${quiz.question}</div>
-                    <button class="audio-btn" onclick="handleQuestionClick(${qIdx}, '${quiz.question}')">🔊 听题</button>
-                </div>
-                <div class="options-container">
-                    ${quiz.options.map((opt, oIdx) => `
-                        <div class="quiz-opt" onclick="checkAnswer(this, ${oIdx}, ${quiz.answer}, '${opt}')">
-                            <span>${opt}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+            qCard.innerHTML = `<div style="font-weight:bold;color:#EF6C00;margin-bottom:8px;">Question ${qIdx + 1}</div><div style="display:flex; align-items:center; margin-bottom:10px;"><div style="font-weight:bold; flex:1; font-size:16px;">${quiz.question}</div><button class="audio-btn" onclick="handleQuestionClick(${qIdx}, '${quiz.question}')">🔊 听题</button></div><div class="options-container">${quiz.options.map((opt, oIdx) => `<div class="quiz-opt" onclick="checkAnswer(this, ${oIdx}, ${quiz.answer}, '${opt}')"><span>${opt}</span></div>`).join('')}</div>`;
             container.appendChild(qCard);
         });
-        
         let spacer = document.createElement('div');
         spacer.style.height = "50px";
         container.appendChild(spacer);
@@ -533,7 +408,6 @@
         event.stopPropagation();
         stopAutoPlay();
         activateParagraph(paraIdx, true); 
-
         const vocabCard = document.getElementById(`vocab-card-${word}`);
         if(vocabCard) {
             document.querySelectorAll('.vocab-card').forEach(el => el.classList.remove('focused'));
@@ -551,13 +425,10 @@
             activeCard.classList.add('active');
             activeCard.scrollIntoView({behavior: "smooth", block: "center"});
         }
-
         if(storyData.paragraphs[idx] && storyData.paragraphs[idx].img) {
             document.getElementById('scene-img').src = storyData.paragraphs[idx].img;
         }
-        
         updateSidebar(idx);
-
         if (!silent) {
             let rawText = storyData.paragraphs[idx].text.replace(/{|}/g, "");
             speakText(rawText);
@@ -568,13 +439,8 @@
         const container = document.getElementById('vocab-container');
         container.innerHTML = "";
         const vocabMap = storyData.paragraphs[idx].vocab;
-        
         const header = document.getElementById('vocab-header-el');
-        if(header) { 
-            header.innerText = "🔑 核心词汇 (点击全显)"; 
-            header.style.color = "#333"; 
-        }
-
+        if(header) { header.innerText = "🔑 核心词汇 (点击全显)"; header.style.color = "#333"; }
         for (let [word, info] of Object.entries(vocabMap)) {
             let card = createVocabCard(word, info);
             container.appendChild(card);
@@ -592,8 +458,6 @@
             el.classList.remove('correct');
         }
     }
-
-    /* ================= 播放控制 ================= */
 
     function toggleAutoPlay() {
         if (isAutoPlaying) stopAutoPlay();
@@ -622,7 +486,6 @@
             return;
         }
         activateParagraph(idx); 
-        
         let rawText = storyData.paragraphs[idx].text.replace(/{|}/g, "");
         speakText(rawText, () => {
              if(isAutoPlaying) setTimeout(() => playNextParagraph(idx + 1), 500);
@@ -637,51 +500,42 @@
         });
     }
 
-    /* ================= ★ 安卓/华为/鸿蒙 TTS 核心修复 ================= */
+    /* ================= ★ V37 华为/安卓 兼容核心 ================= */
     
     function speakText(text, onEndCallback) {
-        log("ReqSpeak: " + text);
+        log("Speak Req: " + text);
         window.speechSynthesis.cancel();
         currentUtterance = new SpeechSynthesisUtterance(text);
         
-        assignVoice(currentUtterance);
-        currentUtterance.rate = currentRate;
-        
-        // 关键修复：华为平板有时不触发 onend，加一个兜底计时器
+        // ★ 华为修复：不指定任何 voice，让系统完全接管
+        // 只在有明确的 'en-US' 时才指定，否则就不指定
+        if (availableVoices.length > 0) {
+             let targetVoice = availableVoices.find(v => v.lang === 'en-US');
+             if (targetVoice) {
+                 currentUtterance.voice = targetVoice;
+                 log("Used Voice: " + targetVoice.name);
+             } else {
+                 log("No US voice. Using System Default.");
+             }
+        }
+
+        // ★ 华为修复：不设置 lang，让系统自己猜（有些系统设置了 lang 反而找不到）
+        // currentUtterance.lang = 'en-US'; 
+
+        // ★ 华为修复：不设置 rate，有些引擎对非 1.0 的速度会崩溃
+        // currentUtterance.rate = currentRate; 
+
         if(onEndCallback) {
-            currentUtterance.onend = () => {
-                log("Speak Finished.");
-                onEndCallback();
-            };
-            currentUtterance.onerror = (e) => {
-                log("Speak Error: " + e.error);
+            currentUtterance.onend = () => { log("End."); onEndCallback(); };
+            currentUtterance.onerror = (e) => { 
+                log("Err: " + e.error);
+                if (e.error === 'synthesis-failed') {
+                    alert("错误：您的平板没有安装英语语音包。\n请去 设置 -> 文本转语音 -> 首选引擎 -> 安装语音数据。");
+                }
             };
         }
 
         window.speechSynthesis.speak(currentUtterance);
-        log("Sent to TTS engine.");
-    }
-
-    function assignVoice(utterance) {
-        if (availableVoices.length === 0) availableVoices = window.speechSynthesis.getVoices();
-        
-        // 1. 优先美式英语
-        let targetVoice = availableVoices.find(v => v.lang === 'en-US');
-        // 2. 其次任何英语 (en-GB, en_US, en)
-        if (!targetVoice) targetVoice = availableVoices.find(v => v.lang.indexOf('en') !== -1);
-        
-        // ★ 3. 华为/安卓兜底：如果还找不到，就用默认的第一个声音（哪怕它是中文，也比没声音强）
-        if (!targetVoice && availableVoices.length > 0) {
-            targetVoice = availableVoices[0];
-            log("Fallback to default voice: " + targetVoice.name);
-        }
-
-        if (targetVoice) {
-            utterance.voice = targetVoice;
-            log("Selected Voice: " + targetVoice.name + " (" + targetVoice.lang + ")");
-        } else {
-            log("No voice found. Using system default.");
-        }
     }
 </script>
 </body>
